@@ -13,7 +13,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 API_TOKEN = "8168140620:AAHEL7fDn5vO_KsLuo-R1iC_tLCM4TTM918"
 
 # Список админов (можно добавлять через запятую)
-ADMIN_IDS = [53962232, 123456789, 987654321]
+ADMIN_IDS = [53962232, 53962232, 7405897453, 8155772452]
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
