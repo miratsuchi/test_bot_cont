@@ -1,6 +1,7 @@
 import asyncio
 import json
 import threading
+import os
 from flask import Flask, Response, abort
 import requests
 from aiogram import Bot, Dispatcher, F
@@ -9,11 +10,19 @@ from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
+from dotenv import load_dotenv
 
-API_TOKEN = "8168140620:AAHEL7fDn5vO_KsLuo-R1iC_tLCM4TTM918"
+load_dotenv()  # Загружаем переменные из .env
 
-# Список админов (можно добавлять через запятую)
-ADMIN_IDS = [53962232, 53962232, 7405897453, 8155772452]
+API_TOKEN = os.getenv("API_TOKEN")
+ADMIN_IDS = os.getenv("ADMIN_IDS", "")  # строка с ID через запятую
+DOMAIN = os.getenv("DOMAIN", "https://example.com")
+
+# Преобразуем ADMIN_IDS в множество чисел
+try:
+    ADMIN_IDS = set(int(x.strip()) for x in ADMIN_IDS.split(",") if x.strip())
+except Exception:
+    ADMIN_IDS = set()
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
@@ -34,17 +43,22 @@ def save_files_db(data):
     with open("files.json", "w") as f:
         json.dump(data, f)
 
+def is_admin(user_id: int) -> bool:
+    return user_id in ADMIN_IDS
+
 @dp.message(Command("start"))
 async def start_handler(message: Message, state: FSMContext):
-    if message.from_user.id not in ADMIN_IDS:
+    if not is_admin(message.from_user.id):
         await message.answer("Ты не админ.")
         return
-    await message.answer("Привет! Отправь файл — он станет доступен для скачивания по корневой ссылке.")
+    await message.answer(
+        f"Привет! Отправь файл — он станет доступен для скачивания по ссылке:\n{DOMAIN}/"
+    )
     await state.set_state(Form.waiting_for_file)
 
 @dp.message(Form.waiting_for_file, F.document)
 async def file_handler(message: Message, state: FSMContext):
-    if message.from_user.id not in ADMIN_IDS:
+    if not is_admin(message.from_user.id):
         await message.answer("Ты не админ.")
         return
 
@@ -52,7 +66,7 @@ async def file_handler(message: Message, state: FSMContext):
     files_db = {"current": file_id}  # Всегда сохраняем как "current"
     save_files_db(files_db)
 
-    await message.answer("Файл сохранён! Теперь его можно скачать по корневой ссылке:\nhttps://твой_домен/")
+    await message.answer(f"Файл сохранён! Теперь его можно скачать по ссылке:\n{DOMAIN}/")
     await state.clear()
 
 @app.route("/")
@@ -86,7 +100,10 @@ async def start_bot():
     await dp.start_polling(bot)
 
 def main():
-    flask_thread = threading.Thread(target=lambda: app.run(host="0.0.0.0", port=8080, use_reloader=False), daemon=True)
+    flask_thread = threading.Thread(
+        target=lambda: app.run(host="0.0.0.0", port=8080, use_reloader=False),
+        daemon=True,
+    )
     flask_thread.start()
 
     asyncio.run(start_bot())
