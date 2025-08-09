@@ -11,7 +11,9 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 
 API_TOKEN = "8168140620:AAHEL7fDn5vO_KsLuo-R1iC_tLCM4TTM918"
-ADMIN_ID = 53962232  # твой Telegram ID
+
+# Список админов (можно добавлять через запятую)
+ADMIN_IDS = [53962232, 8144158477]
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
@@ -34,7 +36,7 @@ def save_files_db(data):
 
 @dp.message(Command("start"))
 async def start_handler(message: Message, state: FSMContext):
-    if message.from_user.id != ADMIN_ID:
+    if message.from_user.id not in ADMIN_IDS:
         await message.answer("Ты не админ.")
         return
     await message.answer("Привет! Отправь файл — он станет доступен для скачивания по корневой ссылке.")
@@ -42,7 +44,7 @@ async def start_handler(message: Message, state: FSMContext):
 
 @dp.message(Form.waiting_for_file, F.document)
 async def file_handler(message: Message, state: FSMContext):
-    if message.from_user.id != ADMIN_ID:
+    if message.from_user.id not in ADMIN_IDS:
         await message.answer("Ты не админ.")
         return
 
@@ -58,7 +60,6 @@ def download_file():
     files_db = load_files_db()
     file_id = files_db.get("current")
     if not file_id:
-        # Нет файла — отдаем пустую страницу
         return Response("", content_type="text/html")
 
     r = requests.get(f"https://api.telegram.org/bot{API_TOKEN}/getFile?file_id={file_id}")
@@ -70,8 +71,6 @@ def download_file():
     if not file_response.ok:
         return abort(500)
 
-    # Используем имя оригинального файла из Telegram (можно получить из message.document.file_name,
-    # но у нас его сейчас нет, поэтому можно отдавать, например, "file")
     filename = "file"
 
     return Response(
